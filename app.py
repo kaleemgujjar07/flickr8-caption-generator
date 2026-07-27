@@ -90,7 +90,9 @@ def generate_caption(image, encoder, decoder, vocab, max_length=20):
             inputs = embeddings
             
         hiddens, states = decoder.lstm(inputs, states)
-        outputs = decoder.linear(hiddens.squeeze(1))
+        
+        # FIX: We only want the output of the LAST time step to predict the next word
+        outputs = decoder.linear(hiddens[:, -1, :])
         
         predicted = outputs.argmax(1)
         generated_caption.append(predicted.item())
