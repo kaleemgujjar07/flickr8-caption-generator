@@ -11,7 +11,7 @@ from nltk.tokenize import word_tokenize
 # Download NLTK data
 nltk.download('punkt', quiet=True)
 
-# 1. Model Architecture (Matches your 15-epoch model - NO BatchNorm)
+# 1. Model Architecture (NO BatchNorm - Matches your 15-epoch model)
 class EncoderCNN(nn.Module):
     def __init__(self, embed_size):
         super(EncoderCNN, self).__init__()
@@ -26,6 +26,14 @@ class EncoderCNN(nn.Module):
         features = features.view(features.size(0), -1)
         features = self.linear(features)
         return features
+
+class DecoderRNN(nn.Module):
+    def __init__(self, embed_size, hidden_size, vocab_size, num_layers=1):
+        super(DecoderRNN, self).__init__()
+        self.embed = nn.Embedding(vocab_size, embed_size)
+        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)
+        self.linear = nn.Linear(hidden_size, vocab_size)
+
 # 2. Load Models and Vocab
 @st.cache_resource
 def load_resources():
@@ -39,7 +47,6 @@ def load_resources():
     encoder = EncoderCNN(embed_size)
     decoder = DecoderRNN(embed_size, hidden_size, vocab_size)
     
-    # Downloading from your Hugging Face account
     enc_path = hf_hub_download(repo_id="gujjarkaleem37/flickr8-captioning", filename="encoder.pth")
     dec_path = hf_hub_download(repo_id="gujjarkaleem37/flickr8-captioning", filename="decoder.pth")
     
