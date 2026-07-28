@@ -94,7 +94,7 @@ def generate_caption(image, encoder, decoder, vocab, max_length=20):
         if predicted.item() == vocab["stoi"]["<EOS>"]:
             break
             
-    words = [vocab["itos"][str(idx)] for idx in generated_caption[1:-1]]
+    words = [vocab["itos"][str(idx)] for idx in generated_caption[1:-1] if vocab["itos"][str(idx)] not in ["<UNK>", "<PAD>"]]
     return ' '.join(words)
 
 # 5. Streamlit UI
