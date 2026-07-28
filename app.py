@@ -11,7 +11,7 @@ from nltk.tokenize import word_tokenize
 # Download NLTK data
 nltk.download('punkt', quiet=True)
 
-# 1. Model Architecture (WITH BatchNorm - Matches your 15-epoch trained model)
+# 1. Model Architecture (Matches your 15-epoch model - NO BatchNorm)
 class EncoderCNN(nn.Module):
     def __init__(self, embed_size):
         super(EncoderCNN, self).__init__()
@@ -20,21 +20,12 @@ class EncoderCNN(nn.Module):
         modules = list(resnet.children())[:-1]
         self.resnet = nn.Sequential(*modules)
         self.linear = nn.Linear(resnet.fc.in_features, embed_size)
-        self.bn = nn.BatchNorm1d(embed_size)  # <--- BATCHNORM IS HERE
         
     def forward(self, images):
         features = self.resnet(images)
         features = features.view(features.size(0), -1)
-        features = self.bn(self.linear(features))  # <--- BATCHNORM APPLIED HERE
+        features = self.linear(features)
         return features
-
-class DecoderRNN(nn.Module):
-    def __init__(self, embed_size, hidden_size, vocab_size, num_layers=1):
-        super(DecoderRNN, self).__init__()
-        self.embed = nn.Embedding(vocab_size, embed_size)
-        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)
-        self.linear = nn.Linear(hidden_size, vocab_size)
-
 # 2. Load Models and Vocab
 @st.cache_resource
 def load_resources():
