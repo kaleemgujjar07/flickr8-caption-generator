@@ -11,7 +11,7 @@ from nltk.tokenize import word_tokenize
 # Download NLTK data
 nltk.download('punkt', quiet=True)
 
-# 1. Model Architecture (Must match the training code)
+# 1. Model Architecture (Matches your uploaded model - NO BatchNorm)
 class EncoderCNN(nn.Module):
     def __init__(self, embed_size):
         super(EncoderCNN, self).__init__()
@@ -20,14 +20,19 @@ class EncoderCNN(nn.Module):
         modules = list(resnet.children())[:-1]
         self.resnet = nn.Sequential(*modules)
         self.linear = nn.Linear(resnet.fc.in_features, embed_size)
-        # REMOVED self.bn = nn.BatchNorm1d(embed_size) 
         
     def forward(self, images):
         features = self.resnet(images)
         features = features.view(features.size(0), -1)
-        # REMOVED self.bn(self.linear(features))
         features = self.linear(features)
         return features
+
+class DecoderRNN(nn.Module):
+    def __init__(self, embed_size, hidden_size, vocab_size, num_layers=1):
+        super(DecoderRNN, self).__init__()
+        self.embed = nn.Embedding(vocab_size, embed_size)
+        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)
+        self.linear = nn.Linear(hidden_size, vocab_size)
 
 # 2. Load Models and Vocab
 @st.cache_resource
@@ -43,8 +48,8 @@ def load_resources():
     decoder = DecoderRNN(embed_size, hidden_size, vocab_size)
     
     # REPLACE 'YOUR_HF_USERNAME' with your actual Hugging Face username!
-    enc_path = hf_hub_download(repo_id='gujjarkaleem37/flickr8-captioning', filename="encoder.pth")
-    dec_path = hf_hub_download(repo_id='gujjarkaleem37/flickr8-captioning', filename="decoder.pth")
+    enc_path = hf_hub_download(repo_id="gujjarkaleem37/flickr8-captioning", filename="encoder.pth")
+    dec_path = hf_hub_download(repo_id="gujjarkaleem37/flickr8-captioning", filename="decoder.pth")
     
     encoder.load_state_dict(torch.load(enc_path, map_location='cpu'))
     decoder.load_state_dict(torch.load(dec_path, map_location='cpu'))
@@ -69,7 +74,6 @@ def generate_caption(image, encoder, decoder, vocab, max_length=20):
     with torch.no_grad():
         feature = encoder(image)
         
-    # Start with <SOS> token
     generated_caption = [vocab["stoi"]["<SOS>"]]
     
     states = None
@@ -78,14 +82,11 @@ def generate_caption(image, encoder, decoder, vocab, max_length=20):
         embeddings = decoder.embed(input_word)
         
         if states is None:
-            # First step: use image feature as initial hidden state input
             inputs = torch.cat((feature.unsqueeze(1), embeddings), dim=1)
         else:
             inputs = embeddings
             
         hiddens, states = decoder.lstm(inputs, states)
-        
-        # FIX: We only want the output of the LAST time step to predict the next word
         outputs = decoder.linear(hiddens[:, -1, :])
         
         predicted = outputs.argmax(1)
@@ -94,7 +95,6 @@ def generate_caption(image, encoder, decoder, vocab, max_length=20):
         if predicted.item() == vocab["stoi"]["<EOS>"]:
             break
             
-    # Convert indices to words
     words = [vocab["itos"][str(idx)] for idx in generated_caption[1:-1]]
     return ' '.join(words)
 
