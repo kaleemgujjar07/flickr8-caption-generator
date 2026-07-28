@@ -11,7 +11,7 @@ from nltk.tokenize import word_tokenize
 # Download NLTK data
 nltk.download('punkt', quiet=True)
 
-# 1. Model Architecture (Matches your uploaded model - NO BatchNorm)
+# 1. Model Architecture (WITH BatchNorm - Matches your 15-epoch trained model)
 class EncoderCNN(nn.Module):
     def __init__(self, embed_size):
         super(EncoderCNN, self).__init__()
@@ -20,11 +20,12 @@ class EncoderCNN(nn.Module):
         modules = list(resnet.children())[:-1]
         self.resnet = nn.Sequential(*modules)
         self.linear = nn.Linear(resnet.fc.in_features, embed_size)
+        self.bn = nn.BatchNorm1d(embed_size)  # <--- BATCHNORM IS HERE
         
     def forward(self, images):
         features = self.resnet(images)
         features = features.view(features.size(0), -1)
-        features = self.linear(features)
+        features = self.bn(self.linear(features))  # <--- BATCHNORM APPLIED HERE
         return features
 
 class DecoderRNN(nn.Module):
@@ -47,7 +48,7 @@ def load_resources():
     encoder = EncoderCNN(embed_size)
     decoder = DecoderRNN(embed_size, hidden_size, vocab_size)
     
-    # REPLACE 'YOUR_HF_USERNAME' with your actual Hugging Face username!
+    # Downloading from your Hugging Face account
     enc_path = hf_hub_download(repo_id="gujjarkaleem37/flickr8-captioning", filename="encoder.pth")
     dec_path = hf_hub_download(repo_id="gujjarkaleem37/flickr8-captioning", filename="decoder.pth")
     
